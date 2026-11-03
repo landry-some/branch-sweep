@@ -107,3 +107,8 @@ def build_plan(base: str, protect=(), cwd=None) -> Plan:
         else:
             plan.delete.append(name)
     return plan
+
+
+def delete_branch(name: str, cwd=None) -> None:
+    """Delete with ``git branch -d`` so git refuses anything not fully merged."""
+    run(["branch", "-d", name], cwd)
