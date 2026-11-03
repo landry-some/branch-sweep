@@ -18,6 +18,10 @@ def parse_args(argv):
         "--base", metavar="BRANCH",
         help="branch to compare against (default: origin/HEAD, main or master)",
     )
+    parser.add_argument(
+        "--protect", metavar="PATTERN", action="append", default=[],
+        help="never delete branches matching this glob (repeatable)",
+    )
     parser.add_argument("--version", action="version", version=__version__)
     return parser.parse_args(argv)
 
@@ -44,7 +48,7 @@ def main(argv=None) -> int:
     try:
         ensure_repo()
         base = args.base or detect_base()
-        plan = build_plan(base)
+        plan = build_plan(base, protect=args.protect)
     except GitError as err:
         print(f"branch-sweep: {err}", file=sys.stderr)
         return 2

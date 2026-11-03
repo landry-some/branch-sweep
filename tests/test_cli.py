@@ -19,3 +19,18 @@ def test_outside_repo_exits_2(tmp_path, monkeypatch, capsys):
     monkeypatch.setenv("GIT_CEILING_DIRECTORIES", str(tmp_path.parent))
     assert main([]) == 2
     assert "not inside a git repository" in capsys.readouterr().err
+
+
+def test_protect_flag_is_repeatable(repo, capsys):
+    for name in ("release/2", "keep", "gone"):
+        repo.git("branch", name)
+        repo.git("switch", "-q", name)
+        repo.commit(name)
+        repo.git("switch", "-q", "main")
+        repo.git("merge", "-q", "--no-ff", "-m", f"merge {name}", name)
+
+    assert main(["--protect", "release/*", "--protect", "keep"]) == 0
+    out = capsys.readouterr().out
+    assert "Would delete (1):\n  gone\n" in out
+    assert "keep       protected" in out
+    assert "release/2  protected" in out

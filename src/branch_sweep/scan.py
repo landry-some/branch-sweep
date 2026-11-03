@@ -1,10 +1,12 @@
 """Work out which local branches can be deleted, and why the others are kept."""
 
 from dataclasses import dataclass, field
+from fnmatch import fnmatchcase
 
 from .git import GitError, run, succeeds
 
 HEADS = "refs/heads/"
+ALWAYS_PROTECTED = ("main", "master", "develop", "trunk")
 
 
 @dataclass
@@ -45,13 +47,30 @@ def merged_branches(base: str, cwd=None) -> list[str]:
     return sorted(line.removeprefix(HEADS) for line in out.splitlines() if line)
 
 
-def build_plan(base: str, cwd=None) -> Plan:
+def configured_patterns(cwd=None) -> list[str]:
+    """Patterns from the multi-valued ``branch-sweep.protect`` git config."""
+    if not succeeds(["config", "--get-all", "branch-sweep.protect"], cwd):
+        return []
+    out = run(["config", "--get-all", "branch-sweep.protect"], cwd)
+    return [line.strip() for line in out.splitlines() if line.strip()]
+
+
+def is_protected(name: str, patterns) -> bool:
+    if name in ALWAYS_PROTECTED:
+        return True
+    return any(fnmatchcase(name, pattern) for pattern in patterns)
+
+
+def build_plan(base: str, protect=(), cwd=None) -> Plan:
     if not branch_exists(base, cwd):
         raise GitError(f"base branch '{base}' does not exist")
+    patterns = [*protect, *configured_patterns(cwd)]
     plan = Plan(base=base)
     for name in merged_branches(base, cwd):
         if name == base:
             plan.kept.append((name, "base branch"))
+        elif is_protected(name, patterns):
+            plan.kept.append((name, "protected"))
         else:
             plan.delete.append(name)
     return plan

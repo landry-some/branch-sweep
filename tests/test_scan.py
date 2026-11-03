@@ -53,3 +53,37 @@ def test_plan_keeps_base_and_lists_merged(repo):
 def test_plan_rejects_missing_base(repo):
     with pytest.raises(GitError, match="does not exist"):
         build_plan("nope")
+
+
+def test_well_known_names_are_protected(repo):
+    for name in ("master", "develop", "trunk"):
+        repo.git("branch", name)
+    make_merged_branch(repo, "topic")
+    plan = build_plan("main")
+    assert plan.delete == ["topic"]
+    assert ("develop", "protected") in plan.kept
+    assert ("master", "protected") in plan.kept
+    assert ("trunk", "protected") in plan.kept
+
+
+def test_protect_patterns_from_argument(repo):
+    make_merged_branch(repo, "release/1.0")
+    make_merged_branch(repo, "topic")
+    plan = build_plan("main", protect=["release/*"])
+    assert plan.delete == ["topic"]
+    assert ("release/1.0", "protected") in plan.kept
+
+
+def test_protect_patterns_from_git_config(repo):
+    make_merged_branch(repo, "keep-me")
+    make_merged_branch(repo, "hotfix/x")
+    make_merged_branch(repo, "topic")
+    repo.git("config", "--add", "branch-sweep.protect", "keep-*")
+    repo.git("config", "--add", "branch-sweep.protect", "hotfix/*")
+    plan = build_plan("main")
+    assert plan.delete == ["topic"]
+    assert {name for name, _ in plan.kept} == {"main", "keep-me", "hotfix/x"}
+
+
+def test_protected_base_is_reported_as_base(repo):
+    assert build_plan("main").kept == [("main", "base branch")]
