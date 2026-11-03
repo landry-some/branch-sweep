@@ -54,9 +54,11 @@ Would delete (2):
   fix/typo-in-footer
 
 Kept (3):
-  main                 protected
-  wip/search           checked out in a worktree
-  spike/new-parser     same commit as main (probably just created)
+  main              base branch
+  spike/new-parser  same commit as main (probably just created)
+  wip/search        checked out in a worktree
+
+Dry run, nothing deleted. Run with --delete to remove them.
 ```
 
 ### Options
