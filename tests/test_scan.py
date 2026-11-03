@@ -87,3 +87,36 @@ def test_protect_patterns_from_git_config(repo):
 
 def test_protected_base_is_reported_as_base(repo):
     assert build_plan("main").kept == [("main", "base branch")]
+
+
+def test_current_branch_is_kept(repo):
+    make_merged_branch(repo, "topic")
+    repo.git("switch", "-q", "topic")
+    plan = build_plan("main")
+    assert plan.delete == []
+    assert ("topic", "current branch") in plan.kept
+
+
+def test_branch_in_other_worktree_is_kept(repo, tmp_path):
+    make_merged_branch(repo, "topic")
+    make_merged_branch(repo, "other")
+    repo.git("worktree", "add", "-q", str(tmp_path / "wt"), "topic")
+    plan = build_plan("main")
+    assert plan.delete == ["other"]
+    assert ("topic", "checked out in a worktree") in plan.kept
+
+
+def test_branch_at_base_commit_is_kept(repo):
+    repo.git("branch", "fresh")
+    make_merged_branch(repo, "done")
+    repo.git("branch", "fresh-too")
+    plan = build_plan("main")
+    # "fresh" is behind main now, so it is an old merged pointer: delete it.
+    assert plan.delete == ["done", "fresh"]
+    assert ("fresh-too", "same commit as main (probably just created)") in plan.kept
+
+
+def test_detached_head_does_not_crash(repo):
+    make_merged_branch(repo, "topic")
+    repo.git("switch", "-q", "--detach", "HEAD~1")
+    assert build_plan("main").delete == ["topic"]

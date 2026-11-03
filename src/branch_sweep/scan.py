@@ -61,16 +61,49 @@ def is_protected(name: str, patterns) -> bool:
     return any(fnmatchcase(name, pattern) for pattern in patterns)
 
 
+def current_branch(cwd=None) -> str | None:
+    """Name of the checked-out branch, or None on a detached HEAD."""
+    if not succeeds(["symbolic-ref", "--quiet", "HEAD"], cwd):
+        return None
+    return run(["symbolic-ref", "HEAD"], cwd).strip().removeprefix(HEADS)
+
+
+def worktree_branches(cwd=None) -> set[str]:
+    """Branches checked out in any worktree of this repository."""
+    out = run(["worktree", "list", "--porcelain"], cwd)
+    return {
+        line.removeprefix("branch ").removeprefix(HEADS)
+        for line in out.splitlines()
+        if line.startswith("branch ")
+    }
+
+
+def tip(name: str, cwd=None) -> str:
+    return run(["rev-parse", HEADS + name], cwd).strip()
+
+
 def build_plan(base: str, protect=(), cwd=None) -> Plan:
     if not branch_exists(base, cwd):
         raise GitError(f"base branch '{base}' does not exist")
     patterns = [*protect, *configured_patterns(cwd)]
+    current = current_branch(cwd)
+    in_worktrees = worktree_branches(cwd)
+    base_tip = tip(base, cwd)
     plan = Plan(base=base)
     for name in merged_branches(base, cwd):
+        reason = None
         if name == base:
-            plan.kept.append((name, "base branch"))
+            reason = "base branch"
         elif is_protected(name, patterns):
-            plan.kept.append((name, "protected"))
+            reason = "protected"
+        elif name == current:
+            reason = "current branch"
+        elif name in in_worktrees:
+            reason = "checked out in a worktree"
+        elif tip(name, cwd) == base_tip:
+            reason = f"same commit as {base} (probably just created)"
+        if reason:
+            plan.kept.append((name, reason))
         else:
             plan.delete.append(name)
     return plan
