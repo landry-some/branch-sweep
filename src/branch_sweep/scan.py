@@ -9,6 +9,12 @@ HEADS = "refs/heads/"
 ALWAYS_PROTECTED = ("main", "master", "develop", "trunk")
 
 
+@dataclass(frozen=True)
+class Branch:
+    name: str
+    tip: str
+
+
 @dataclass
 class Plan:
     base: str
@@ -38,13 +44,24 @@ def detect_base(cwd=None) -> str:
     raise GitError("could not find a base branch, pass one with --base")
 
 
-def merged_branches(base: str, cwd=None) -> list[str]:
-    """Local branches whose tip is reachable from ``base``, sorted by name."""
+def merged_branches(base: str, cwd=None) -> list[Branch]:
+    """Local branches whose tip is reachable from ``base``, sorted by name.
+
+    Everything is read in a single ``git for-each-ref`` call.
+    """
     out = run(
-        ["for-each-ref", f"--merged={HEADS}{base}", "--format=%(refname)", HEADS],
+        [
+            "for-each-ref", f"--merged={HEADS}{base}",
+            "--format=%(objectname) %(refname)", HEADS,
+        ],
         cwd,
     )
-    return sorted(line.removeprefix(HEADS) for line in out.splitlines() if line)
+    branches = []
+    for line in out.splitlines():
+        if line:
+            sha, ref = line.split(" ", 1)
+            branches.append(Branch(ref.removeprefix(HEADS), sha))
+    return sorted(branches, key=lambda b: b.name)
 
 
 def configured_patterns(cwd=None) -> list[str]:
@@ -90,7 +107,8 @@ def build_plan(base: str, protect=(), cwd=None) -> Plan:
     in_worktrees = worktree_branches(cwd)
     base_tip = tip(base, cwd)
     plan = Plan(base=base)
-    for name in merged_branches(base, cwd):
+    for branch in merged_branches(base, cwd):
+        name = branch.name
         reason = None
         if name == base:
             reason = "base branch"
@@ -100,7 +118,7 @@ def build_plan(base: str, protect=(), cwd=None) -> Plan:
             reason = "current branch"
         elif name in in_worktrees:
             reason = "checked out in a worktree"
-        elif tip(name, cwd) == base_tip:
+        elif branch.tip == base_tip:
             reason = f"same commit as {base} (probably just created)"
         if reason:
             plan.kept.append((name, reason))

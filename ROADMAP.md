@@ -20,7 +20,7 @@ Work planned after v0.1. Estimates are rough, in hours. Total: **30.5 h**.
 
 ## Refactors (3 h)
 
-- [ ] Read all branch data in one `git for-each-ref` call instead of one call per branch — 2 h
+- [x] Read all branch data in one `git for-each-ref` call instead of one call per branch — 2 h
 - [ ] Split the plan (what to delete and why) from terminal output, so JSON and text share it — 1 h
 
 ## Tests (4 h)

@@ -39,7 +39,7 @@ def test_merged_branches_excludes_unmerged(repo):
     repo.git("switch", "-q", "-c", "feature/open")
     repo.commit("unfinished")
     repo.git("switch", "-q", "main")
-    assert merged_branches("main") == ["feature/done", "main"]
+    assert [b.name for b in merged_branches("main")] == ["feature/done", "main"]
 
 
 def test_plan_keeps_base_and_lists_merged(repo):
@@ -120,3 +120,10 @@ def test_detached_head_does_not_crash(repo):
     make_merged_branch(repo, "topic")
     repo.git("switch", "-q", "--detach", "HEAD~1")
     assert build_plan("main").delete == ["topic"]
+
+
+def test_merged_branches_reads_tips(repo):
+    make_merged_branch(repo, "topic")
+    tips = {b.name: b.tip for b in merged_branches("main")}
+    assert tips["topic"] == repo.git("rev-parse", "topic").strip()
+    assert tips["main"] == repo.git("rev-parse", "main").strip()
