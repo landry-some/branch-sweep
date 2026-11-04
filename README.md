@@ -67,6 +67,7 @@ Dry run, nothing deleted. Run with --delete to remove them.
 |---|---|
 | `--base BRANCH` | Branch to compare against. Default: the branch `origin/HEAD` points to, else `main`, else `master`. |
 | `--protect PATTERN` | Never delete branches matching this glob (e.g. `release/*`). Can be repeated. |
+| `--min-age DAYS` | Only sweep branches whose last commit is at least DAYS days old; newer ones are kept. |
 | `--delete` | Actually delete the candidates (asks first). Without it, nothing is changed. |
 | `--yes`, `-y` | With `--delete`, skip the confirmation prompt. |
 
@@ -84,6 +85,7 @@ Dry run, nothing deleted. Run with --delete to remove them.
 - The current branch and any branch checked out in a linked worktree.
 - Branches still pointing at the same commit as the base, since they are most
   likely new branches with no work yet.
+- With `--min-age DAYS`, branches whose last commit is newer than that.
 
 Exit codes: `0` on success, `1` if a deletion failed, `2` for usage errors or when
 not inside a git repository.

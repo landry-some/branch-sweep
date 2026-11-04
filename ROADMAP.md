@@ -9,7 +9,7 @@ Work planned after v0.1. Estimates are rough, in hours. Total: **30.5 h**.
 - [ ] Restore log: write each deleted branch's tip to a log file, plus a `branch-sweep restore <name>` command — 3 h
 - [ ] Interactive mode: pick which candidates to delete from a checklist — 2.5 h
 - [ ] List branches whose upstream is gone (`[gone]`) as a separate group — 2 h
-- [ ] `--min-age DAYS`: only sweep branches whose last commit is older than N days — 1.5 h
+- [x] `--min-age DAYS`: only sweep branches whose last commit is older than N days — 1.5 h
 - [ ] `--json` output for scripting — 1 h
 
 ## Bugs and edge cases (4 h)

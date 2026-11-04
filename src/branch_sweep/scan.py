@@ -1,11 +1,13 @@
 """Work out which local branches can be deleted, and why the others are kept."""
 
+import time
 from dataclasses import dataclass, field
 from fnmatch import fnmatchcase
 
 from .git import GitError, run, succeeds
 
 HEADS = "refs/heads/"
+DAY = 24 * 60 * 60
 ALWAYS_PROTECTED = ("main", "master", "develop", "trunk")
 
 
@@ -13,6 +15,7 @@ ALWAYS_PROTECTED = ("main", "master", "develop", "trunk")
 class Branch:
     name: str
     tip: str
+    committed: int  # committer date of the tip, as a Unix timestamp
 
 
 @dataclass
@@ -52,15 +55,15 @@ def merged_branches(base: str, cwd=None) -> list[Branch]:
     out = run(
         [
             "for-each-ref", f"--merged={HEADS}{base}",
-            "--format=%(objectname) %(refname)", HEADS,
+            "--format=%(objectname) %(committerdate:unix) %(refname)", HEADS,
         ],
         cwd,
     )
     branches = []
     for line in out.splitlines():
         if line:
-            sha, ref = line.split(" ", 1)
-            branches.append(Branch(ref.removeprefix(HEADS), sha))
+            sha, committed, ref = line.split(" ", 2)
+            branches.append(Branch(ref.removeprefix(HEADS), sha, int(committed)))
     return sorted(branches, key=lambda b: b.name)
 
 
@@ -99,13 +102,18 @@ def tip(name: str, cwd=None) -> str:
     return run(["rev-parse", HEADS + name], cwd).strip()
 
 
-def build_plan(base: str, protect=(), cwd=None) -> Plan:
+def build_plan(base: str, protect=(), min_age=None, now=None, cwd=None) -> Plan:
+    """Sort merged branches into delete and kept.
+
+    With ``min_age`` (days), branches whose last commit is newer are kept.
+    """
     if not branch_exists(base, cwd):
         raise GitError(f"base branch '{base}' does not exist")
     patterns = [*protect, *configured_patterns(cwd)]
     current = current_branch(cwd)
     in_worktrees = worktree_branches(cwd)
     base_tip = tip(base, cwd)
+    now = time.time() if now is None else now
     plan = Plan(base=base)
     for branch in merged_branches(base, cwd):
         name = branch.name
@@ -120,6 +128,10 @@ def build_plan(base: str, protect=(), cwd=None) -> Plan:
             reason = "checked out in a worktree"
         elif branch.tip == base_tip:
             reason = f"same commit as {base} (probably just created)"
+        elif min_age is not None and now - branch.committed < min_age * DAY:
+            days = int((now - branch.committed) // DAY)
+            unit = "day" if days == 1 else "days"
+            reason = f"last commit {days} {unit} ago (--min-age {min_age})"
         if reason:
             plan.kept.append((name, reason))
         else:

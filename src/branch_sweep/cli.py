@@ -8,6 +8,16 @@ from .git import GitError
 from .scan import Plan, build_plan, delete_branch, detect_base, ensure_repo
 
 
+def non_negative_int(value: str) -> int:
+    try:
+        number = int(value)
+    except ValueError:
+        number = -1
+    if number < 0:
+        raise argparse.ArgumentTypeError(f"expected a whole number of days, got {value!r}")
+    return number
+
+
 def parse_args(argv):
     parser = argparse.ArgumentParser(
         prog="branch-sweep",
@@ -21,6 +31,10 @@ def parse_args(argv):
     parser.add_argument(
         "--protect", metavar="PATTERN", action="append", default=[],
         help="never delete branches matching this glob (repeatable)",
+    )
+    parser.add_argument(
+        "--min-age", metavar="DAYS", type=non_negative_int,
+        help="only sweep branches whose last commit is at least DAYS old",
     )
     parser.add_argument(
         "--delete", action="store_true",
@@ -57,7 +71,7 @@ def main(argv=None) -> int:
     try:
         ensure_repo()
         base = args.base or detect_base()
-        plan = build_plan(base, protect=args.protect)
+        plan = build_plan(base, protect=args.protect, min_age=args.min_age)
     except GitError as err:
         print(f"branch-sweep: {err}", file=sys.stderr)
         return 2

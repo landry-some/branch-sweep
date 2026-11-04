@@ -1,3 +1,5 @@
+import pytest
+
 from branch_sweep.cli import main
 
 
@@ -106,3 +108,21 @@ def test_git_refusal_is_reported_and_exits_1(repo, capsys):
     captured = capsys.readouterr()
     assert "Failed  a:" in captured.err
     assert "a" in repo.branches()
+
+
+def test_min_age_flag(repo, monkeypatch, capsys):
+    monkeypatch.setenv("GIT_COMMITTER_DATE", "2000-01-01T00:00:00Z")
+    merged(repo, "ancient")
+    monkeypatch.delenv("GIT_COMMITTER_DATE")
+    merged(repo, "today")
+    assert main(["--min-age", "30"]) == 0
+    out = capsys.readouterr().out
+    assert "Would delete (1):\n  ancient\n" in out
+    assert "last commit 0 days ago (--min-age 30)" in out
+
+
+def test_min_age_rejects_negative(repo, capsys):
+    with pytest.raises(SystemExit) as exc:
+        main(["--min-age", "-1"])
+    assert exc.value.code == 2
+    assert "whole number of days" in capsys.readouterr().err

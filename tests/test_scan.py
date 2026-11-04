@@ -127,3 +127,23 @@ def test_merged_branches_reads_tips(repo):
     tips = {b.name: b.tip for b in merged_branches("main")}
     assert tips["topic"] == repo.git("rev-parse", "topic").strip()
     assert tips["main"] == repo.git("rev-parse", "main").strip()
+
+
+def test_min_age_keeps_recent_branches(repo, monkeypatch):
+    monkeypatch.setenv("GIT_COMMITTER_DATE", "2026-01-01T12:00:00Z")
+    make_merged_branch(repo, "old")
+    monkeypatch.setenv("GIT_COMMITTER_DATE", "2026-01-25T12:00:00Z")
+    make_merged_branch(repo, "recent")
+    now = repo_time(repo, "recent") + 5 * 86400
+    plan = build_plan("main", min_age=10, now=now)
+    assert plan.delete == ["old"]
+    assert ("recent", "last commit 5 days ago (--min-age 10)") in plan.kept
+
+
+def test_min_age_zero_keeps_nothing_extra(repo):
+    make_merged_branch(repo, "topic")
+    assert build_plan("main", min_age=0).delete == ["topic"]
+
+
+def repo_time(repo, ref):
+    return int(repo.git("log", "-1", "--format=%ct", ref).strip())
