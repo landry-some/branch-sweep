@@ -14,7 +14,7 @@ Work planned after v0.1. Estimates are rough, in hours. Total: **30.5 h**.
 
 ## Bugs and edge cases (4 h)
 
-- [ ] Clear messages for detached HEAD, a repo with no commits, and no base branch found — 1.5 h
+- [x] Clear messages for detached HEAD, a repo with no commits, and no base branch found — 1.5 h
 - [ ] Branch names with slashes, dots and non-ASCII characters in all output paths — 1 h
 - [ ] Bare repositories and linked worktrees run from inside the worktree — 1.5 h
 

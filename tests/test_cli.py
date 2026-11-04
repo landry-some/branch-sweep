@@ -1,4 +1,5 @@
 import json
+import subprocess
 
 import pytest
 
@@ -151,3 +152,32 @@ def test_json_with_delete_is_a_usage_error(repo, capsys):
         main(["--json", "--delete"])
     assert exc.value.code == 2
     assert "--json cannot be combined with --delete" in capsys.readouterr().err
+
+
+def test_repo_without_commits_has_clear_message(tmp_path, monkeypatch, capsys):
+    subprocess.run(["git", "init", "-q", "-b", "main", str(tmp_path)], check=True)
+    monkeypatch.chdir(tmp_path)
+    assert main([]) == 2
+    assert "no commits yet" in capsys.readouterr().err
+
+
+def test_missing_base_names_what_was_tried(repo, capsys):
+    repo.git("branch", "-m", "main", "work")
+    assert main([]) == 2
+    err = capsys.readouterr().err
+    assert "no origin/HEAD, main or master" in err
+    assert "--base" in err
+
+
+def test_detached_head_is_mentioned(repo, capsys):
+    merged(repo, "topic")
+    repo.git("switch", "-q", "--detach", "HEAD")
+    assert main([]) == 0
+    out = capsys.readouterr().out
+    assert "HEAD is detached" in out
+    assert "Would delete (1):\n  topic\n" in out
+
+
+def test_attached_head_has_no_detached_note(repo, capsys):
+    assert main([]) == 0
+    assert "detached" not in capsys.readouterr().out

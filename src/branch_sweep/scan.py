@@ -21,6 +21,7 @@ class Branch:
 @dataclass
 class Plan:
     base: str
+    detached: bool = False
     delete: list[str] = field(default_factory=list)
     kept: list[tuple[str, str]] = field(default_factory=list)
 
@@ -28,6 +29,8 @@ class Plan:
 def ensure_repo(cwd=None) -> None:
     if not succeeds(["rev-parse", "--git-dir"], cwd):
         raise GitError("not inside a git repository")
+    if not run(["for-each-ref", "--count=1", HEADS], cwd).strip():
+        raise GitError("this repository has no commits yet, so there is nothing to sweep")
 
 
 def branch_exists(name: str, cwd=None) -> bool:
@@ -44,7 +47,10 @@ def detect_base(cwd=None) -> str:
     for name in ("main", "master"):
         if branch_exists(name, cwd):
             return name
-    raise GitError("could not find a base branch, pass one with --base")
+    raise GitError(
+        "could not find a base branch (no origin/HEAD, main or master), "
+        "pass one with --base"
+    )
 
 
 def merged_branches(base: str, cwd=None) -> list[Branch]:
@@ -114,7 +120,7 @@ def build_plan(base: str, protect=(), min_age=None, now=None, cwd=None) -> Plan:
     in_worktrees = worktree_branches(cwd)
     base_tip = tip(base, cwd)
     now = time.time() if now is None else now
-    plan = Plan(base=base)
+    plan = Plan(base=base, detached=current is None)
     for branch in merged_branches(base, cwd):
         name = branch.name
         reason = None

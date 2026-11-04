@@ -88,8 +88,11 @@ Dry run, nothing deleted. Run with --delete to remove them.
   likely new branches with no work yet.
 - With `--min-age DAYS`, branches whose last commit is newer than that.
 
-Exit codes: `0` on success, `1` if a deletion failed, `2` for usage errors or when
-not inside a git repository.
+On a detached HEAD the plan says so, since no branch is kept as "current".
+
+Exit codes: `0` on success, `1` if a deletion failed, `2` for usage errors, when
+not inside a git repository, when the repository has no commits yet, or when no
+base branch can be found.
 
 ## Tests
 

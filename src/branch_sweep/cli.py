@@ -67,6 +67,8 @@ def print_json(plan: Plan) -> None:
 
 def print_plan(plan: Plan, deleting: bool) -> None:
     print(f"Base branch: {plan.base}")
+    if plan.detached:
+        print("HEAD is detached, so no branch counts as the current one.")
     print()
     if plan.delete:
         heading = "To delete" if deleting else "Would delete"
