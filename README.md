@@ -68,6 +68,7 @@ Dry run, nothing deleted. Run with --delete to remove them.
 | `--base BRANCH` | Branch to compare against. Default: the branch `origin/HEAD` points to, else `main`, else `master`. |
 | `--protect PATTERN` | Never delete branches matching this glob (e.g. `release/*`). Can be repeated. |
 | `--min-age DAYS` | Only sweep branches whose last commit is at least DAYS days old; newer ones are kept. |
+| `--json` | Print the plan as JSON (`base`, `delete`, and `kept` with a `reason` each) instead of text. Report only, so it cannot be combined with `--delete`. |
 | `--delete` | Actually delete the candidates (asks first). Without it, nothing is changed. |
 | `--yes`, `-y` | With `--delete`, skip the confirmation prompt. |
 

@@ -1,3 +1,5 @@
+import json
+
 import pytest
 
 from branch_sweep.cli import main
@@ -126,3 +128,26 @@ def test_min_age_rejects_negative(repo, capsys):
         main(["--min-age", "-1"])
     assert exc.value.code == 2
     assert "whole number of days" in capsys.readouterr().err
+
+
+def test_json_output(repo, capsys):
+    merged(repo, "done")
+    repo.git("branch", "fresh")
+    assert main(["--json"]) == 0
+    data = json.loads(capsys.readouterr().out)
+    assert data == {
+        "base": "main",
+        "delete": ["done"],
+        "kept": [
+            {"name": "fresh", "reason": "same commit as main (probably just created)"},
+            {"name": "main", "reason": "base branch"},
+        ],
+    }
+    assert "done" in repo.branches()
+
+
+def test_json_with_delete_is_a_usage_error(repo, capsys):
+    with pytest.raises(SystemExit) as exc:
+        main(["--json", "--delete"])
+    assert exc.value.code == 2
+    assert "--json cannot be combined with --delete" in capsys.readouterr().err

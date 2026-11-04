@@ -1,6 +1,7 @@
 """Command-line entry point."""
 
 import argparse
+import json
 import sys
 
 from . import __version__
@@ -44,8 +45,24 @@ def parse_args(argv):
         "-y", "--yes", action="store_true",
         help="with --delete, do not ask for confirmation",
     )
+    parser.add_argument(
+        "--json", action="store_true",
+        help="print the plan as JSON instead of text (cannot be used with --delete)",
+    )
     parser.add_argument("--version", action="version", version=__version__)
-    return parser.parse_args(argv)
+    args = parser.parse_args(argv)
+    if args.json and args.delete:
+        parser.error("--json cannot be combined with --delete")
+    return args
+
+
+def print_json(plan: Plan) -> None:
+    data = {
+        "base": plan.base,
+        "delete": plan.delete,
+        "kept": [{"name": name, "reason": reason} for name, reason in plan.kept],
+    }
+    print(json.dumps(data, indent=2, ensure_ascii=False))
 
 
 def print_plan(plan: Plan, deleting: bool) -> None:
@@ -75,6 +92,9 @@ def main(argv=None) -> int:
     except GitError as err:
         print(f"branch-sweep: {err}", file=sys.stderr)
         return 2
+    if args.json:
+        print_json(plan)
+        return 0
     print_plan(plan, deleting=args.delete)
 
     if not plan.delete:
